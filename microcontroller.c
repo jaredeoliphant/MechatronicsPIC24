@@ -9,11 +9,16 @@
 #pragma config ICS = PGx3  //debug tools if using pin 9 and 10 for programing
 #pragma config OSCIOFNC = OFF  // disable clock out on pin 8 so I can use it. 
 
+// All possible locations the robot can be in
 enum{center, dispenser, Rgoal, Cgoal, Lgoal} location;
+// All the states for the state machine
 enum{initial, drivinggoal, drivingdispenser, looking, returning, dispenserlooking, getballs, dumping, final} state;
+// states of the switches
 enum{corner, notcorner} switchstate;
+// states of the IR eye
 enum{ON, OFF} eye;
 
+// initialize some flags for later
 int foundagoal = 0;
 int counter = 0;
 int timer = 0; 
@@ -22,6 +27,7 @@ int timer = 0;
 // Configuration functions
 void configpins()
 {
+    // 0 for output, 1 for input
     _TRISA0 = _TRISA1 = _TRISB2 = _TRISA2 = _TRISA3 = _TRISB7 = 0; // dc motor outputs (pins 2,3,6,7,8,11)
     //pins 11 (enable), 2, 3 go to Left Right motors that control forward and backward.   
     //pins 6 (enable) ,7,8 go to Forward Backward motors that control left and right. 
@@ -68,11 +74,12 @@ void configCN()
   _CN22PUE = 0;  //  Disable pull-up resistor on pin 12
   _CNIF = 0;    // clear interrupt flag (bit 3 of IFS1)
 }
+
 void configpwm()
 {
   //registers for pwm    OCxCON1, OCxCON2, OCxRS (period), OCxR (duty cycle), 
 
-//***OC1 is for pin 14 for stepper motor!  (RA6)
+  //***OC1 is for pin 14 for stepper motor!  (RA6)
   OC1CON1 = 0;
   OC1CON2 = 0;   //reset 
 
@@ -100,6 +107,7 @@ void configpwm()
   OC3R = 0;     // initially a 0% duty cycle.
 
 }
+
 void configcomp()
 {
     _CVROE = 0;                    // voltage reference output is internal only
@@ -148,6 +156,7 @@ void tone(float freq, float duration)
   __delay_ms(duration);
   OC3R = 0;                   //0 % D.C. = turn off after alloted time. 
 }
+
 void HARRYPOTTER()
 {
   float beat = 600;   //lower number will be faster
@@ -270,13 +279,15 @@ void HopperDOWN(float inches)
 
 //-----------------------------------------------------
 // Interrupt Service Routines
+//----------------------------------------
+// ISR for Timer 1
 void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
 {
     _T1IF = 0;    // clear flag
     if (PR1 == 46875)
     {
         counter = counter + 1;
-        if (counter == 5)    // 3*5 = 15 sec
+        if (counter == 5)    // 3*5 = 15 sec the initial time segment
         {
             timer = 1;
         }
@@ -301,15 +312,10 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt(void)
               HARRYPOTTER();   // play a song (repeat forever)!     
             }
         }
-        else
-        {}
      }
-    else
-    {}
-    //   
-  
 }
 
+// ISR for the change notification
 void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void)
 {
      _CNIF = 0;              //  clear flag
@@ -324,8 +330,6 @@ void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void)
          PR1 = 46875;  // start timer for start of game (15625*3 sec = 46875)
          TMR1 = 0;       // reset timer 1 
        }
-       else
-       {}
      }
      //every time we drive forward looking for the dispenser corner, 
      //the state should be drivingdispenser, switchstate = notcorner
@@ -348,10 +352,6 @@ void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void)
          Diagonalleft();
          switchstate = notcorner;    // the switchstate variable allows us to find a corner
       }
-      else
-      {
-          // do nothing
-      }
      }
      //every time we drive forward looking for a goal corner, 
      //the state should be drivinggoal, switchstate = notcorner
@@ -373,15 +373,10 @@ void __attribute__((interrupt, no_auto_psv)) _CNInterrupt(void)
          Diagonalleft();
          switchstate = notcorner;    // the switchstate variable allows us to find a corner
       }
-      else
-      {
-          // do nothing
-      }
      }
-     else
-     {}
 }
 
+// ISR for the compartator (IR light detector)
 void __attribute__((interrupt, no_auto_psv)) _CompInterrupt(void)
 {
     CM1CONbits.CEVT = 0;      //clear individual comparator flag
@@ -408,8 +403,6 @@ void __attribute__((interrupt, no_auto_psv)) _CompInterrupt(void)
          _CVR = 0b10000;                // set voltage reference at 16*3.3/32 = 1.65 V
         
     }
-    else
-    {}
 }
 
 
@@ -424,7 +417,7 @@ int main()
   configpwm();
   configcomp();
  
-  state = initial;
+  state = initial;    // set up the state machine
   int i,j;              // for "ball count" for loop and "shaking" for loop
   int goal;           // for counting which goal we are at
   eye = OFF;       // initial state of EYE
@@ -550,10 +543,6 @@ int main()
             }
       
           }
-          else
-          {
-
-          }
          }
        }
         
@@ -612,10 +601,6 @@ int main()
             default:
               break;
           }
-        }
-        else
-        {
-           //do nothing
         }
     }
     return 0;
